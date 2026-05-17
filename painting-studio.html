@@ -1,0 +1,1088 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Atelier — Painting Studio</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{width:100%;height:100%;overflow:hidden;background:#0f0d0b;font-family:system-ui,sans-serif;user-select:none;-webkit-user-select:none;}
+
+#app{position:fixed;inset:0;display:flex;flex-direction:column;}
+
+/* TOP BAR */
+#topbar{
+  flex:0 0 auto;height:44px;background:#161210;border-bottom:1px solid #2a2218;
+  display:flex;align-items:center;padding:0 8px;gap:5px;overflow-x:auto;overflow-y:hidden;
+}
+#topbar::-webkit-scrollbar{height:0;}
+.logo{font-style:italic;font-size:17px;color:#e8a830;letter-spacing:.1em;flex-shrink:0;margin-right:4px;}
+.topbtn{
+  flex-shrink:0;font-size:9px;letter-spacing:.06em;text-transform:uppercase;
+  color:#6a5a48;background:#1c1814;border:1px solid #2a2218;border-radius:4px;
+  padding:4px 8px;cursor:pointer;white-space:nowrap;transition:all .13s;
+}
+.topbtn:hover,.topbtn.on{color:#e8a830;border-color:#e8a83060;}
+.tsp{flex:1;}
+#xy{font-size:9px;color:#2a2218;font-family:monospace;flex-shrink:0;}
+
+/* MIDDLE */
+#middle{flex:1 1 0;display:flex;min-height:0;overflow:hidden;}
+
+/* SIDEBAR */
+#sidebar{
+  flex:0 0 54px;background:#161210;border-right:1px solid #2a2218;
+  display:flex;flex-direction:column;align-items:center;
+  padding:6px 0;gap:2px;overflow-y:auto;overflow-x:hidden;
+}
+#sidebar::-webkit-scrollbar{width:0;}
+.tool{
+  width:42px;height:42px;border-radius:8px;border:1px solid transparent;
+  background:none;color:#6a5a48;font-size:18px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:all .13s;flex-shrink:0;
+}
+.tool:hover{background:#1c1814;color:#ddd;}
+.tool.active{background:#e8a83018;border-color:#e8a83060;color:#fff;}
+.tsep{width:28px;height:1px;background:#2a2218;margin:3px 0;flex-shrink:0;}
+
+/* CANVAS AREA */
+#carea{
+  flex:1 1 0;position:relative;overflow:hidden;
+  min-width:0;min-height:0;background:#fff;
+}
+#draw-canvas{
+  position:absolute;top:0;left:0;width:100%;height:100%;
+  cursor:crosshair;display:block;background:#fff;
+}
+#grid-canvas,#guide-canvas{
+  position:absolute;top:0;left:0;width:100%;height:100%;
+  pointer-events:none;display:block;opacity:0;transition:opacity .25s;
+}
+#grid-canvas.on,#guide-canvas.on{opacity:1;}
+
+/* FLOATING PANELS */
+.panel{
+  position:absolute;top:8px;width:200px;
+  background:#161210;border:1px solid #2a2218;border-radius:9px;
+  z-index:50;max-height:calc(100% - 16px);overflow-y:auto;
+  transition:opacity .18s,transform .18s;
+}
+.panel.off{opacity:0;pointer-events:none;transform:translateY(-6px);}
+.panel::-webkit-scrollbar{width:3px;}
+.panel::-webkit-scrollbar-thumb{background:#2a2218;}
+#color-panel{right:8px;}
+#layer-panel{right:216px;}
+.ph{
+  padding:9px 12px 7px;font-size:8px;letter-spacing:.13em;text-transform:uppercase;
+  color:#6a5a48;border-bottom:1px solid #2a2218;
+  position:sticky;top:0;background:#161210;z-index:1;
+}
+.pb{padding:10px 12px;}
+#big-swatch{width:100%;height:44px;border-radius:6px;border:1px solid #2a2218;margin-bottom:8px;cursor:pointer;}
+#big-swatch:hover{outline:2px solid #e8a830;}
+#hex-field{
+  width:100%;background:#1a1714;border:1px solid #2a2218;border-radius:4px;
+  color:#eee;font-family:monospace;font-size:11px;padding:5px 8px;
+  text-align:center;letter-spacing:.09em;margin-bottom:9px;
+}
+#hex-field:focus{outline:none;border-color:#e8a830;}
+.pal{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;}
+.psw{
+  aspect-ratio:1;border-radius:4px;cursor:pointer;
+  border:2px solid transparent;transition:transform .09s;
+}
+.psw:hover{transform:scale(1.18);}
+.psw.sel{border-color:#fff!important;}
+
+/* LAYER PANEL */
+.lr{
+  display:flex;align-items:center;gap:7px;padding:5px 6px;
+  border-radius:5px;cursor:pointer;margin-bottom:3px;border:1px solid transparent;
+}
+.lr:hover{background:#1c1814;}
+.lr.active{background:#e8a83015;border-color:#e8a83050;}
+.lthumb{width:32px;height:24px;border-radius:3px;border:1px solid #2a2218;overflow:hidden;flex-shrink:0;background:#fff;}
+.lthumb canvas{width:100%;height:100%;display:block;}
+.lname{flex:1;font-size:10px;color:#bbb;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.leye{background:none;border:none;font-size:12px;cursor:pointer;color:#5a4a38;padding:2px;}
+.ladd{
+  width:100%;padding:6px;margin-top:3px;background:none;
+  border:1px dashed #2a2218;border-radius:5px;color:#5a4a38;
+  font-size:9px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;
+}
+.ladd:hover{color:#ddd;border-color:#555;}
+
+/* BOTTOM BAR */
+#bottombar{
+  flex:0 0 auto;height:50px;background:#161210;border-top:1px solid #2a2218;
+  display:flex;align-items:center;padding:0 10px;gap:10px;
+  overflow-x:auto;overflow-y:hidden;
+}
+#bottombar::-webkit-scrollbar{height:0;}
+.dot{width:28px;height:28px;border-radius:50%;border:2px solid #3a3028;cursor:pointer;flex-shrink:0;}
+.dot:hover{outline:2px solid #e8a83060;}
+.bgdot{border-radius:7px!important;}
+.bsep{width:1px;height:28px;background:#2a2218;flex-shrink:0;}
+.cg{display:flex;align-items:center;gap:6px;flex-shrink:0;}
+.cl{font-size:8px;letter-spacing:.09em;text-transform:uppercase;color:#5a4a48;white-space:nowrap;}
+.cv{font-size:9px;color:#4a3a28;font-family:monospace;width:22px;}
+input[type=range]{
+  -webkit-appearance:none;appearance:none;
+  width:72px;height:3px;background:#2a2218;border-radius:2px;outline:none;cursor:pointer;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:14px;height:14px;border-radius:50%;
+  background:#e8a830;box-shadow:0 0 0 2px #0009;cursor:pointer;
+}
+select{
+  background:#1a1714;border:1px solid #2a2218;color:#bbb;
+  font-size:9px;padding:4px 5px;border-radius:4px;cursor:pointer;outline:none;
+}
+select option{background:#1a1714;}
+
+/* MODALS */
+.modal{
+  position:fixed;inset:0;background:rgba(0,0,0,.72);
+  z-index:999;display:none;align-items:center;justify-content:center;
+}
+.modal.open{display:flex;}
+.mbox{background:#161210;border:1px solid #2a2218;border-radius:10px;padding:18px;width:252px;}
+.mbox h3{font-size:14px;font-weight:300;font-style:italic;color:#e8a830;text-align:center;letter-spacing:.1em;margin-bottom:14px;}
+#sv-c{width:100%;height:144px;border-radius:5px;cursor:crosshair;display:block;margin-bottom:8px;}
+#hue-c{width:100%;height:14px;border-radius:3px;cursor:crosshair;display:block;margin-bottom:12px;}
+.prow{display:flex;gap:9px;align-items:center;margin-bottom:12px;}
+#pk-prev{width:38px;height:38px;border-radius:5px;border:1px solid #2a2218;flex-shrink:0;}
+#pk-hex{flex:1;background:#1a1714;border:1px solid #2a2218;border-radius:4px;color:#fff;font-family:monospace;font-size:12px;padding:6px 8px;text-align:center;letter-spacing:.1em;}
+#pk-hex:focus{outline:none;border-color:#e8a830;}
+.bgpre-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:12px;}
+.bgpre{aspect-ratio:1;border-radius:5px;cursor:pointer;border:2px solid transparent;transition:transform .09s;}
+.bgpre:hover{transform:scale(1.1);}
+.bgpre.sel{border-color:#e8a830!important;}
+.bgpre.chk{background:repeating-conic-gradient(#888 0 25%,#ccc 0 50%) 0 0/10px 10px;}
+.bgrow{display:flex;gap:8px;align-items:center;margin-bottom:12px;}
+#bg-prev{width:36px;height:36px;border-radius:5px;border:1px solid #2a2218;flex-shrink:0;}
+#bg-hex{flex:1;background:#1a1714;border:1px solid #2a2218;border-radius:4px;color:#fff;font-family:monospace;font-size:12px;padding:6px 8px;text-align:center;letter-spacing:.1em;}
+#bg-hex:focus{outline:none;border-color:#e8a830;}
+.mbtns{display:flex;gap:7px;}
+.mbtn{flex:1;padding:7px;border-radius:5px;font-size:9px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;transition:all .13s;}
+.mcancel{background:#1c1814;border:1px solid #2a2218;color:#6a5a48;}
+.mcancel:hover{color:#fff;}
+.mok{background:#e8a83018;border:1px solid #e8a83060;color:#e8a830;}
+.mok:hover{background:#e8a83030;}
+
+/* TOAST */
+#toast{
+  position:fixed;bottom:58px;left:50%;
+  transform:translateX(-50%) translateY(8px);
+  background:#0a0806;border:1px solid #2a2218;border-radius:5px;
+  padding:5px 14px;font-size:9px;letter-spacing:.1em;text-transform:uppercase;
+  color:#e8a830;opacity:0;pointer-events:none;z-index:9998;
+  transition:opacity .18s,transform .18s;
+}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* BRUSH CURSOR */
+#bcur{
+  position:fixed;border-radius:50%;
+  border:1px solid rgba(0,0,0,.5);outline:1px solid rgba(255,255,255,.5);
+  pointer-events:none;z-index:9997;transform:translate(-50%,-50%);display:none;
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- TOP BAR -->
+  <div id="topbar">
+    <span class="logo">Atelier</span>
+    <button class="topbtn" onclick="clearLayer()">Clear</button>
+    <button class="topbtn" onclick="newCanvas()">New</button>
+    <button class="topbtn" id="gbtn" onclick="toggleGrid()">Grid</button>
+    <button class="topbtn" id="pgbtn" onclick="toggleGuide()">Guide</button>
+    <button class="topbtn" onclick="doUndo()">↩ Undo</button>
+    <button class="topbtn" onclick="doRedo()">Redo ↪</button>
+    <div class="tsp"></div>
+    <span id="xy"></span>
+    <button class="topbtn" onclick="exportPNG()">Export</button>
+  </div>
+
+  <!-- MIDDLE -->
+  <div id="middle">
+
+    <!-- SIDEBAR -->
+    <div id="sidebar">
+      <button class="tool active" id="t-brush"        onclick="setTool('brush')"       title="Brush">🖌️</button>
+      <button class="tool"        id="t-pencil"       onclick="setTool('pencil')"      title="Pencil">✏️</button>
+      <button class="tool"        id="t-pen"          onclick="setTool('pen')"         title="Ink Pen">🖊️</button>
+      <button class="tool"        id="t-marker"       onclick="setTool('marker')"      title="Marker">🖍️</button>
+      <button class="tool"        id="t-chalk"        onclick="setTool('chalk')"       title="Chalk">🪨</button>
+      <button class="tool"        id="t-spray"        onclick="setTool('spray')"       title="Spray">💨</button>
+      <div class="tsep"></div>
+      <button class="tool"        id="t-eraser"       onclick="setTool('eraser')"      title="Eraser">🧹</button>
+      <button class="tool"        id="t-smudge"       onclick="setTool('smudge')"      title="Smudge">👆</button>
+      <button class="tool"        id="t-blur"         onclick="setTool('blur')"        title="Blur">🌫️</button>
+      <div class="tsep"></div>
+      <button class="tool"        id="t-fill"         onclick="setTool('fill')"        title="Fill">🪣</button>
+      <button class="tool"        id="t-eyedrop"      onclick="setTool('eyedrop')"     title="Eyedrop">💉</button>
+      <div class="tsep"></div>
+      <button class="tool"        id="t-line"         onclick="setTool('line')"        title="Line">📏</button>
+      <button class="tool"        id="t-rect"         onclick="setTool('rect')"        title="Rectangle">⬜</button>
+      <button class="tool"        id="t-rectfill"     onclick="setTool('rectfill')"    title="Filled Rect">🟥</button>
+      <button class="tool"        id="t-ellipse"      onclick="setTool('ellipse')"     title="Oval">⭕</button>
+      <button class="tool"        id="t-ellipsefill"  onclick="setTool('ellipsefill')" title="Filled Oval">🔴</button>
+    </div>
+
+    <!-- CANVAS AREA -->
+    <div id="carea">
+      <canvas id="draw-canvas"></canvas>
+      <canvas id="grid-canvas"></canvas>
+      <canvas id="guide-canvas"></canvas>
+
+      <div class="panel off" id="color-panel">
+        <div class="ph">Colour</div>
+        <div class="pb">
+          <div id="big-swatch" onclick="openPicker()"></div>
+          <input id="hex-field" type="text" value="#e63946" maxlength="7" onchange="hexChanged(this.value)">
+          <div class="pal" id="pal"></div>
+        </div>
+      </div>
+
+      <div class="panel off" id="layer-panel">
+        <div class="ph">Layers</div>
+        <div class="pb">
+          <div id="llist"></div>
+          <button class="ladd" onclick="addLayer()">+ New Layer</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- BOTTOM BAR -->
+  <div id="bottombar">
+    <div class="dot"   id="cdot"  onclick="openPicker()"   style="background:#e63946;" title="Brush colour"></div>
+    <div class="dot bgdot" id="bgdot" onclick="openBgModal()" style="background:#ffffff;" title="Background"></div>
+    <div class="bsep"></div>
+    <div class="cg">
+      <span class="cl">Size</span>
+      <input type="range" id="sl-sz" min="1" max="120" value="16"
+        oninput="brushSz=+this.value;document.getElementById('v-sz').textContent=this.value">
+      <span class="cv" id="v-sz">16</span>
+    </div>
+    <div class="bsep"></div>
+    <div class="cg">
+      <span class="cl">Opacity</span>
+      <input type="range" id="sl-op" min="1" max="100" value="90"
+        oninput="brushOp=+this.value;document.getElementById('v-op').textContent=this.value">
+      <span class="cv" id="v-op">90</span>
+    </div>
+    <div class="bsep"></div>
+    <div class="cg">
+      <span class="cl">Hard</span>
+      <input type="range" id="sl-hd" min="0" max="100" value="60"
+        oninput="brushHd=+this.value;document.getElementById('v-hd').textContent=this.value">
+      <span class="cv" id="v-hd">60</span>
+    </div>
+    <div class="bsep"></div>
+    <div class="cg">
+      <span class="cl">Blend</span>
+      <select onchange="blendM=this.value">
+        <option value="source-over">Normal</option>
+        <option value="multiply">Multiply</option>
+        <option value="screen">Screen</option>
+        <option value="overlay">Overlay</option>
+        <option value="soft-light">Soft Light</option>
+        <option value="hard-light">Hard Light</option>
+        <option value="color-dodge">Dodge</option>
+        <option value="color-burn">Burn</option>
+        <option value="difference">Difference</option>
+        <option value="luminosity">Luminosity</option>
+      </select>
+    </div>
+    <div class="bsep"></div>
+    <button class="topbtn" id="cpbtn" onclick="togglePanel('color-panel','cpbtn')">Colors</button>
+    <button class="topbtn" id="lpbtn" onclick="togglePanel('layer-panel','lpbtn')">Layers</button>
+  </div>
+
+</div>
+
+<!-- COLOUR PICKER MODAL -->
+<div class="modal" id="picker-modal">
+  <div class="mbox">
+    <h3>Brush Colour</h3>
+    <canvas id="sv-c" width="216" height="144"></canvas>
+    <canvas id="hue-c" width="216" height="14"></canvas>
+    <div class="prow">
+      <div id="pk-prev"></div>
+      <input id="pk-hex" type="text" onchange="pkHexCh(this.value)">
+    </div>
+    <div class="mbtns">
+      <button class="mbtn mcancel" onclick="closeModal('picker-modal')">Cancel</button>
+      <button class="mbtn mok"    onclick="confirmColor()">Apply</button>
+    </div>
+  </div>
+</div>
+
+<!-- BG MODAL -->
+<div class="modal" id="bg-modal">
+  <div class="mbox">
+    <h3>Background</h3>
+    <div class="bgpre-grid" id="bgpre-grid"></div>
+    <div class="bgrow">
+      <div id="bg-prev"></div>
+      <input id="bg-hex" type="text" maxlength="7" placeholder="#ffffff" onchange="bgHexCh(this.value)">
+    </div>
+    <div class="mbtns">
+      <button class="mbtn mcancel" onclick="closeModal('bg-modal')">Cancel</button>
+      <button class="mbtn mok"    onclick="confirmBg()">Apply</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<div id="bcur"></div>
+
+<script>
+/* ════════════════════════════════════════════
+   ATELIER — Fixed: no recursion, all tools work
+════════════════════════════════════════════ */
+
+// ── ELEMENTS ──
+const CAREA = document.getElementById('carea');
+const DC    = document.getElementById('draw-canvas');
+const GC    = document.getElementById('grid-canvas');
+const GUC   = document.getElementById('guide-canvas');
+const BCUR  = document.getElementById('bcur');
+
+let CW = 0, CH = 0;
+
+// ── STATE ──
+let tool    = 'brush';
+let color   = '#e63946';
+let bgColor = '#ffffff';
+let bgPend  = '#ffffff';
+let brushSz = 16;
+let brushOp = 90;
+let brushHd = 60;
+let blendM  = 'source-over';
+
+let painting   = false;
+let lx=0, ly=0, sx=0, sy=0;
+let shapeSnap  = null;
+let sprayTimer = null;
+
+let layers    = [];
+let activeIdx = 0;
+let undoStack = [], redoStack = [];
+
+let pkH=0, pkS=0.8, pkV=0.9;
+let svDn=false, hueDn=false;
+let showGrid=false, showGuide=false;
+
+// ── BRIGHT PALETTE ──
+const PALETTE = [
+  // Pure brights
+  '#ff0000','#ff4400','#ff8800','#ffcc00','#ffff00','#aaff00',
+  '#00ff00','#00ff88','#00ffff','#0088ff','#0000ff','#8800ff',
+  '#ff00ff','#ff0088','#ff006e','#e63946','#c1121f','#780000',
+  // Vivid mids
+  '#ff6b6b','#ff9f43','#feca57','#48dbfb','#ff9ff3','#54a0ff',
+  '#5f27cd','#00d2d3','#01aaa5','#2ecc71','#27ae60','#16a085',
+  // Pastels
+  '#ffeaa7','#dfe6e9','#fab1a0','#fd79a8','#a29bfe','#81ecec',
+  '#74b9ff','#55efc4','#fdcb6e','#e17055','#d63031','#6c5ce7',
+  // Skin / warm tones
+  '#ffd5b8','#f4a261','#e76f51','#c77dff','#a8dadc','#457b9d',
+  '#f8edeb','#f5cba7','#d4a574','#a0522d','#6b3a2a','#3d1c08',
+  // Neutrals
+  '#ffffff','#e0e0e0','#b0b0b0','#808080','#404040','#000000',
+  // Cool tones
+  '#e8f4f8','#b0c4de','#4a6fa5','#1e3a5f','#0d1b2a','#e8d5f5',
+];
+
+const BG_PRESETS = [
+  {c:'#ffffff',l:'White'}, {c:'#f5f0e8',l:'Cream'},
+  {c:'#fff8dc',l:'Cornsilk'},{c:'#e8f4f8',l:'Ice Blue'},
+  {c:'#f0ffe0',l:'Mint'},{c:'#1a1a2e',l:'Dark Blue'},
+  {c:'#0d0d0d',l:'Black'},{c:'#2c1810',l:'Dark Brown'},
+  {c:'#1a2c10',l:'Forest'},{c:'#2c102c',l:'Dark Purple'},
+  {c:'#c9ada7',l:'Rose Grey'},{c:'transparent',l:'Clear'},
+];
+
+// ── BOOT ──
+document.addEventListener('DOMContentLoaded', function() {
+  sizeAll();
+  addLayer('Background', true);
+  buildPalette();
+  buildBgPresets();
+  attachEvents();
+  setColorUI(color);
+  setBgUI(bgColor);
+  drawGridLines();
+  drawGuideLines();
+  saveUndo();
+});
+
+window.addEventListener('resize', function() {
+  var saved = layers.map(function(l) {
+    var t = mkC(CW, CH); t.x.drawImage(l.c, 0, 0); return t.e;
+  });
+  sizeAll();
+  layers.forEach(function(l, i) { l.x.drawImage(saved[i], 0, 0); });
+  composite(); drawGridLines(); drawGuideLines();
+});
+
+function sizeAll() {
+  CW = CAREA.clientWidth;
+  CH = CAREA.clientHeight;
+  [DC, GC, GUC].forEach(function(c) { c.width = CW; c.height = CH; });
+  fillBg();
+}
+
+function fillBg() {
+  var ctx = DC.getContext('2d');
+  if (bgColor === 'transparent') {
+    for (var y = 0; y < CH; y += 12) {
+      for (var x = 0; x < CW; x += 12) {
+        ctx.fillStyle = ((Math.floor(x/12) + Math.floor(y/12)) % 2 === 0) ? '#ccc' : '#fff';
+        ctx.fillRect(x, y, 12, 12);
+      }
+    }
+  } else {
+    ctx.fillStyle = bgColor;
+    ctx.fillRect(0, 0, CW, CH);
+  }
+}
+
+// ── CANVAS HELPERS ──
+function mkC(w, h) {
+  var e = document.createElement('canvas');
+  e.width = w; e.height = h;
+  return { e: e, x: e.getContext('2d') };
+}
+
+// ── LAYERS ──
+function addLayer(name, silent) {
+  var tmp = mkC(CW, CH);
+  layers.push({ c: tmp.e, x: tmp.x, name: name || ('Layer ' + (layers.length + 1)), visible: true, id: Date.now() + Math.random() });
+  activeIdx = layers.length - 1;
+  renderLayers();
+  if (!silent) { saveUndo(); showToast('Layer added'); }
+}
+
+function activeCtx() { return layers[activeIdx].x; }
+
+function composite() {
+  var ctx = DC.getContext('2d');
+  ctx.clearRect(0, 0, CW, CH);
+  fillBg();
+  layers.forEach(function(l) { if (l.visible) ctx.drawImage(l.c, 0, 0); });
+}
+
+function renderLayers() {
+  var list = document.getElementById('llist');
+  list.innerHTML = '';
+  for (var i = layers.length - 1; i >= 0; i--) {
+    (function(idx) {
+      var l = layers[idx];
+      var row = document.createElement('div');
+      row.className = 'lr' + (idx === activeIdx ? ' active' : '');
+      row.onclick = function() { activeIdx = idx; renderLayers(); };
+
+      var tw = document.createElement('div'); tw.className = 'lthumb';
+      var tc = document.createElement('canvas'); tc.width = 32; tc.height = 24;
+      var tx = tc.getContext('2d');
+      tx.fillStyle = '#fff'; tx.fillRect(0, 0, 32, 24);
+      tx.drawImage(l.c, 0, 0, 32, 24);
+      tw.appendChild(tc);
+
+      var nm = document.createElement('div'); nm.className = 'lname'; nm.textContent = l.name;
+
+      var eye = document.createElement('button'); eye.className = 'leye';
+      eye.textContent = l.visible ? '👁' : '🚫';
+      eye.onclick = function(e) {
+        e.stopPropagation();
+        l.visible = !l.visible;
+        eye.textContent = l.visible ? '👁' : '🚫';
+        composite(); renderLayers();
+      };
+
+      row.appendChild(tw); row.appendChild(nm); row.appendChild(eye);
+      list.appendChild(row);
+    })(i);
+  }
+}
+
+// ── EVENTS ──
+function attachEvents() {
+  DC.addEventListener('mousedown',  mDn);
+  DC.addEventListener('mousemove',  mMv);
+  DC.addEventListener('mouseup',    mUp);
+  DC.addEventListener('mouseleave', mLeave);
+
+  DC.addEventListener('touchstart',  function(e) { e.preventDefault(); mDn(e.touches[0]); }, { passive: false });
+  DC.addEventListener('touchmove',   function(e) { e.preventDefault(); mMv(e.touches[0]); }, { passive: false });
+  DC.addEventListener('touchend',    function(e) { e.preventDefault(); mUp(e.changedTouches[0]); }, { passive: false });
+  DC.addEventListener('touchcancel', function(e) { e.preventDefault(); mLeave(); }, { passive: false });
+
+  document.addEventListener('mouseup', function() { svDn = false; hueDn = false; });
+  document.addEventListener('keydown', onKey);
+
+  var svc  = document.getElementById('sv-c');
+  var huec = document.getElementById('hue-c');
+  svc.addEventListener('mousedown',  function(e) { svDn = true;   svPick(e); });
+  svc.addEventListener('mousemove',  function(e) { if (svDn) svPick(e); });
+  huec.addEventListener('mousedown', function(e) { hueDn = true;  huePick(e); });
+  huec.addEventListener('mousemove', function(e) { if (hueDn) huePick(e); });
+}
+
+function getXY(e) {
+  var r = DC.getBoundingClientRect();
+  var scx = CW / r.width, scy = CH / r.height;
+  var cx = (e.clientX !== undefined) ? e.clientX : e.pageX;
+  var cy = (e.clientY !== undefined) ? e.clientY : e.pageY;
+  return [(cx - r.left) * scx, (cy - r.top) * scy];
+}
+
+function mDn(e) {
+  if (e.preventDefault) e.preventDefault();
+  painting = true;
+  var p = getXY(e); lx = p[0]; ly = p[1]; sx = p[0]; sy = p[1];
+  if (tool === 'fill')    { floodFill(lx, ly); return; }
+  if (tool === 'eyedrop') { eyedrop(lx, ly); return; }
+  if (tool === 'spray')   { startSpray(lx, ly); return; }
+  if (!isShape()) { paintMark(lx, ly, lx, ly); composite(); }
+}
+
+function mMv(e) {
+  if (e.preventDefault) e.preventDefault();
+  var p = getXY(e);
+  var x = p[0], y = p[1];
+  var ex = (e.clientX !== undefined) ? e.clientX : e.pageX;
+  var ey = (e.clientY !== undefined) ? e.clientY : e.pageY;
+  document.getElementById('xy').textContent = Math.round(x) + '·' + Math.round(y);
+
+  BCUR.style.left   = ex + 'px';
+  BCUR.style.top    = ey + 'px';
+  BCUR.style.width  = brushSz + 'px';
+  BCUR.style.height = brushSz + 'px';
+  var showCur = ['brush','eraser','pencil','pen','marker','chalk','smudge','blur'].indexOf(tool) >= 0;
+  BCUR.style.display = showCur ? 'block' : 'none';
+
+  if (!painting) return;
+  if (tool === 'eyedrop') { eyedrop(x, y); return; }
+  if (tool === 'spray')   { updateSprayPos(x, y); return; }
+  if (isShape())          { previewShape(x, y); return; }
+  paintMark(lx, ly, x, y);
+  lx = x; ly = y;
+}
+
+function mUp(e) {
+  if (!painting) return;
+  painting = false;
+  stopSpray();
+  var p = getXY(e);
+  if (isShape()) commitShape(p[0], p[1]);
+  composite(); saveUndo(); renderLayers();
+}
+
+function mLeave() {
+  if (painting) {
+    painting = false;
+    stopSpray();
+    composite(); saveUndo(); renderLayers();
+  }
+}
+
+function isShape() {
+  return ['line','rect','rectfill','ellipse','ellipsefill'].indexOf(tool) >= 0;
+}
+
+// ── PAINT ENGINE (no recursion) ──
+function paintMark(x1, y1, x2, y2) {
+  var ctx = activeCtx();
+  ctx.save();
+
+  if (tool === 'eraser') {
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.globalAlpha = brushOp / 100;
+    softBrushStroke(ctx, x1, y1, x2, y2, 'rgba(0,0,0,1)', 'rgba(0,0,0,0)');
+
+  } else if (tool === 'pencil') {
+    ctx.globalCompositeOperation = blendM;
+    ctx.globalAlpha = brushOp / 100;
+    ctx.strokeStyle = color;
+    ctx.lineWidth   = Math.max(1, brushSz * 0.25);
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+
+  } else if (tool === 'pen') {
+    ctx.globalCompositeOperation = blendM;
+    ctx.globalAlpha = brushOp / 100;
+    var speed = Math.hypot(x2 - x1, y2 - y1);
+    var lw = Math.max(0.5, brushSz * 0.15 - speed * 0.015);
+    ctx.strokeStyle = color; ctx.lineWidth = lw;
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+
+  } else if (tool === 'marker') {
+    ctx.globalCompositeOperation = blendM;
+    ctx.globalAlpha = (brushOp / 100) * 0.5;
+    ctx.strokeStyle = color;
+    ctx.lineWidth   = brushSz * 1.4;
+    ctx.lineCap = 'square'; ctx.lineJoin = 'miter';
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+
+  } else if (tool === 'chalk') {
+    ctx.globalCompositeOperation = blendM;
+    ctx.globalAlpha = (brushOp / 100) * 0.18;
+    var r = brushSz / 2;
+    var dist = Math.max(1, Math.hypot(x2 - x1, y2 - y1));
+    var steps = Math.ceil(dist / (r * 0.4)) + 1;
+    for (var i = 0; i <= steps; i++) {
+      var t = steps ? i / steps : 1;
+      var px = x1 + (x2 - x1) * t, py = y1 + (y2 - y1) * t;
+      for (var j = 0; j < 8; j++) {
+        var ang = Math.random() * Math.PI * 2, rad = Math.random() * r;
+        ctx.fillStyle = color;
+        ctx.fillRect(px + Math.cos(ang) * rad, py + Math.sin(ang) * rad, Math.random() * 1.5 + 0.5, Math.random() * 1.5 + 0.5);
+      }
+    }
+
+  } else if (tool === 'smudge') {
+    var sr = brushSz / 2;
+    var bx = Math.round(x1 - sr), by = Math.round(y1 - sr);
+    var bw = Math.round(sr * 2),  bh = Math.round(sr * 2);
+    if (bw > 0 && bh > 0) {
+      try {
+        var snap = ctx.getImageData(bx, by, bw, bh);
+        var tmp = mkC(bw, bh); tmp.x.putImageData(snap, 0, 0);
+        ctx.globalAlpha = 0.5;
+        ctx.drawImage(tmp.e, Math.round(x2 - sr), Math.round(y2 - sr));
+      } catch(err) {}
+    }
+    composite();
+
+  } else if (tool === 'blur') {
+    var br = brushSz / 2;
+    var bbx = Math.round(x2 - br), bby = Math.round(y2 - br);
+    var bbw = Math.round(br * 2),  bbh = Math.round(br * 2);
+    if (bbw > 0 && bbh > 0) {
+      try {
+        ctx.filter = 'blur(' + Math.max(1, Math.round(brushSz * 0.18)) + 'px)';
+        ctx.globalAlpha = 0.55;
+        ctx.drawImage(layers[activeIdx].c, bbx, bby, bbw, bbh, bbx, bby, bbw, bbh);
+        ctx.filter = 'none';
+      } catch(err) { ctx.filter = 'none'; }
+    }
+    composite();
+
+  } else {
+    // brush (default)
+    ctx.globalCompositeOperation = blendM;
+    ctx.globalAlpha = brushOp / 100;
+    softBrushStroke(ctx, x1, y1, x2, y2, color, hexA(color, 0));
+  }
+
+  ctx.restore();
+}
+
+function softBrushStroke(ctx, x1, y1, x2, y2, col, trans) {
+  var r    = brushSz / 2;
+  var edge = 0.18 + (brushHd / 100) * 0.62;
+  var dist = Math.hypot(x2 - x1, y2 - y1);
+  var step = Math.max(1, r * 0.28);
+  var n    = Math.max(1, Math.ceil(dist / step));
+  for (var i = 0; i <= n; i++) {
+    var t  = n ? i / n : 1;
+    var px = x1 + (x2 - x1) * t;
+    var py = y1 + (y2 - y1) * t;
+    var g  = ctx.createRadialGradient(px, py, 0, px, py, r);
+    g.addColorStop(0, col);
+    g.addColorStop(edge, col);
+    g.addColorStop(1, trans);
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(px, py, r, 0, Math.PI * 2); ctx.fill();
+  }
+}
+
+// ── SPRAY ──
+var sprayX = 0, sprayY = 0;
+function startSpray(x, y)   { sprayX = x; sprayY = y; runSpray(); }
+function updateSprayPos(x, y) { sprayX = x; sprayY = y; }
+function stopSpray()          { if (sprayTimer) { clearTimeout(sprayTimer); sprayTimer = null; } }
+function runSpray() {
+  var ctx = activeCtx();
+  ctx.save();
+  ctx.globalCompositeOperation = blendM;
+  ctx.globalAlpha = (brushOp / 100) * 0.07;
+  ctx.fillStyle = color;
+  var r = brushSz * 1.3;
+  for (var i = 0; i < 20; i++) {
+    var ang  = Math.random() * Math.PI * 2;
+    var dist = Math.random() * r;
+    var px   = sprayX + Math.cos(ang) * dist;
+    var py   = sprayY + Math.sin(ang) * dist;
+    ctx.beginPath(); ctx.arc(px, py, Math.random() * 1.2 + 0.3, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+  composite();
+  if (painting) sprayTimer = setTimeout(runSpray, 30);
+}
+
+// ── SHAPES ──
+function previewShape(x, y) {
+  if (!shapeSnap) {
+    shapeSnap = mkC(CW, CH);
+    shapeSnap.x.drawImage(layers[activeIdx].c, 0, 0);
+  }
+  var ctx = activeCtx();
+  ctx.clearRect(0, 0, CW, CH);
+  ctx.drawImage(shapeSnap.e, 0, 0);
+  doShape(ctx, sx, sy, x, y);
+  composite();
+}
+function commitShape(x, y) {
+  var ctx = activeCtx();
+  if (shapeSnap) { ctx.clearRect(0, 0, CW, CH); ctx.drawImage(shapeSnap.e, 0, 0); }
+  doShape(ctx, sx, sy, x, y);
+  shapeSnap = null;
+}
+function doShape(ctx, x1, y1, x2, y2) {
+  ctx.save();
+  ctx.globalCompositeOperation = blendM;
+  ctx.globalAlpha  = brushOp / 100;
+  ctx.strokeStyle  = color;
+  ctx.fillStyle    = color;
+  ctx.lineWidth    = Math.max(1, brushSz * 0.4);
+  ctx.lineCap      = 'round';
+  var cx = (x1 + x2) / 2, cy = (y1 + y2) / 2;
+  var rx = Math.abs(x2 - x1) / 2, ry = Math.abs(y2 - y1) / 2;
+  ctx.beginPath();
+  if      (tool === 'line')        { ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); }
+  else if (tool === 'rect')        { ctx.strokeRect(x1,y1,x2-x1,y2-y1); }
+  else if (tool === 'rectfill')    { ctx.fillRect(x1,y1,x2-x1,y2-y1); }
+  else if (tool === 'ellipse')     { ctx.ellipse(cx,cy,Math.max(1,rx),Math.max(1,ry),0,0,Math.PI*2); ctx.stroke(); }
+  else if (tool === 'ellipsefill') { ctx.ellipse(cx,cy,Math.max(1,rx),Math.max(1,ry),0,0,Math.PI*2); ctx.fill(); }
+  ctx.restore();
+}
+
+// ── FLOOD FILL ──
+function floodFill(fx, fy) {
+  var ctx = activeCtx();
+  var id  = ctx.getImageData(0, 0, CW, CH);
+  var d   = id.data;
+  var ix  = Math.round(Math.max(0, Math.min(CW - 1, fx)));
+  var iy  = Math.round(Math.max(0, Math.min(CH - 1, fy)));
+  var bi  = (iy * CW + ix) * 4;
+  var tr  = d[bi], tg = d[bi+1], tb = d[bi+2];
+  var rgb = hexRGB(color);
+  var fr  = rgb[0], fg = rgb[1], fb = rgb[2];
+  if (tr === fr && tg === fg && tb === fb) return;
+  var stk = [[ix, iy]];
+  var vis = new Uint8Array(CW * CH);
+  var safety = 0;
+  while (stk.length && safety < 500000) {
+    safety++;
+    var pt = stk.pop();
+    var cx = pt[0], cy = pt[1];
+    if (cx < 0 || cy < 0 || cx >= CW || cy >= CH) continue;
+    if (vis[cy * CW + cx]) continue;
+    var i = (cy * CW + cx) * 4;
+    if (Math.abs(d[i]-tr) > 40 || Math.abs(d[i+1]-tg) > 40 || Math.abs(d[i+2]-tb) > 40) continue;
+    vis[cy * CW + cx] = 1;
+    d[i] = fr; d[i+1] = fg; d[i+2] = fb; d[i+3] = 255;
+    stk.push([cx+1,cy],[cx-1,cy],[cx,cy+1],[cx,cy-1]);
+  }
+  ctx.putImageData(id, 0, 0);
+  composite(); saveUndo();
+}
+
+// ── EYEDROPPER ──
+function eyedrop(x, y) {
+  var p = DC.getContext('2d').getImageData(
+    Math.round(Math.max(0, Math.min(CW-1, x))),
+    Math.round(Math.max(0, Math.min(CH-1, y))), 1, 1).data;
+  if (p[3] === 0) return;
+  var hex = '#' + [p[0],p[1],p[2]].map(function(v) { return v.toString(16).padStart(2,'0'); }).join('');
+  setColor(hex); showToast(hex.toUpperCase());
+}
+
+// ── COLOUR ──
+function setColor(hex) {
+  color = hex; setColorUI(hex);
+  var hsv = rgb2hsv(hexRGB(hex)[0], hexRGB(hex)[1], hexRGB(hex)[2]);
+  pkH = hsv[0]; pkS = hsv[1]; pkV = hsv[2];
+}
+function setColorUI(hex) {
+  document.getElementById('cdot').style.background = hex;
+  document.getElementById('big-swatch').style.background = hex;
+  document.getElementById('hex-field').value = hex;
+  document.querySelectorAll('.psw').forEach(function(s) { s.classList.toggle('sel', s.dataset.c === hex); });
+}
+function hexChanged(v) { if (/^#[0-9a-fA-F]{6}$/.test(v)) setColor(v); }
+
+function buildPalette() {
+  var g = document.getElementById('pal');
+  PALETTE.forEach(function(c) {
+    var s = document.createElement('div'); s.className = 'psw';
+    s.style.background = c; s.dataset.c = c; s.title = c;
+    s.onclick = function() { setColor(c); };
+    g.appendChild(s);
+  });
+}
+
+// ── TOOLS ──
+function setTool(t) {
+  tool = t;
+  document.querySelectorAll('.tool').forEach(function(b) { b.classList.remove('active'); });
+  var el = document.getElementById('t-' + t);
+  if (el) el.classList.add('active');
+  DC.style.cursor = (tool === 'fill') ? 'cell' : 'crosshair';
+}
+
+// ── UNDO / REDO ──
+function saveUndo() {
+  var snap = layers.map(function(l) {
+    var t = mkC(CW, CH); t.x.drawImage(l.c, 0, 0);
+    return { id: l.id, e: t.e };
+  });
+  undoStack.push(snap);
+  if (undoStack.length > 40) undoStack.shift();
+  redoStack = [];
+}
+function applySnap(snap) {
+  snap.forEach(function(s) {
+    var l = layers.find(function(x) { return x.id === s.id; });
+    if (l) { l.x.clearRect(0, 0, CW, CH); l.x.drawImage(s.e, 0, 0); }
+  });
+  composite(); renderLayers();
+}
+function doUndo() {
+  if (undoStack.length < 2) { showToast('Nothing to undo'); return; }
+  redoStack.push(undoStack.pop());
+  applySnap(undoStack[undoStack.length - 1]);
+  showToast('Undo');
+}
+function doRedo() {
+  if (!redoStack.length) { showToast('Nothing to redo'); return; }
+  var s = redoStack.pop(); undoStack.push(s); applySnap(s);
+  showToast('Redo');
+}
+
+// ── GRID ──
+function drawGridLines() {
+  var ctx = GC.getContext('2d'); ctx.clearRect(0, 0, CW, CH);
+  ctx.strokeStyle = 'rgba(150,150,150,.11)'; ctx.lineWidth = .5;
+  for (var x = 0; x <= CW; x += 50) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,CH); ctx.stroke(); }
+  for (var y = 0; y <= CH; y += 50) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(CW,y); ctx.stroke(); }
+  ctx.strokeStyle = 'rgba(232,168,48,.16)'; ctx.lineWidth = 1;
+  [CW/3, CW*2/3].forEach(function(x) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,CH); ctx.stroke(); });
+  [CH/3, CH*2/3].forEach(function(y) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(CW,y); ctx.stroke(); });
+}
+function toggleGrid() {
+  showGrid = !showGrid;
+  GC.classList.toggle('on', showGrid);
+  document.getElementById('gbtn').classList.toggle('on', showGrid);
+  showToast(showGrid ? 'Grid on' : 'Grid off');
+}
+
+// ── PORTRAIT GUIDE ──
+function drawGuideLines() {
+  var ctx = GUC.getContext('2d'); ctx.clearRect(0, 0, CW, CH);
+  var cx = CW/2, cy = CH*0.43;
+  var rx = Math.min(CW,CH)*0.17, ry = Math.min(CW,CH)*0.24;
+  ctx.strokeStyle = 'rgba(232,168,48,.6)'; ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.ellipse(cx,cy,rx,ry,0,0,Math.PI*2); ctx.stroke();
+  ctx.setLineDash([5,5]); ctx.strokeStyle = 'rgba(232,168,48,.35)'; ctx.lineWidth = .8;
+  [[cx,cy-ry-12,cx,cy+ry+12],[cx-rx-12,cy-ry*.04,cx+rx+12,cy-ry*.04],
+   [cx-rx*.65,cy+ry*.3,cx+rx*.65,cy+ry*.3],[cx-rx*.5,cy+ry*.62,cx+rx*.5,cy+ry*.62]
+  ].forEach(function(pts) { ctx.beginPath(); ctx.moveTo(pts[0],pts[1]); ctx.lineTo(pts[2],pts[3]); ctx.stroke(); });
+  ctx.setLineDash([]);
+  ctx.fillStyle = 'rgba(232,168,48,.7)'; ctx.font = '9px monospace';
+  ctx.fillText('Eyes',  cx+rx+8, cy-ry*.01);
+  ctx.fillText('Nose',  cx+rx+8, cy+ry*.33);
+  ctx.fillText('Mouth', cx+rx+8, cy+ry*.64);
+}
+function toggleGuide() {
+  showGuide = !showGuide;
+  GUC.classList.toggle('on', showGuide);
+  document.getElementById('pgbtn').classList.toggle('on', showGuide);
+  showToast(showGuide ? 'Guide on' : 'Guide off');
+}
+
+// ── PANEL TOGGLE ──
+function togglePanel(id, btn) {
+  var p = document.getElementById(id);
+  var off = p.classList.toggle('off');
+  document.getElementById(btn).classList.toggle('on', !off);
+}
+
+// ── ACTIONS ──
+function clearLayer() {
+  if (!confirm('Clear this layer?')) return;
+  activeCtx().clearRect(0, 0, CW, CH);
+  composite(); saveUndo(); showToast('Cleared');
+}
+function newCanvas() {
+  if (!confirm('New canvas? Everything will be cleared.')) return;
+  layers = []; undoStack = []; redoStack = [];
+  document.getElementById('llist').innerHTML = '';
+  addLayer('Background', true);
+  fillBg(); saveUndo(); showToast('New canvas');
+}
+function exportPNG() {
+  var tmp = mkC(CW, CH);
+  if (bgColor !== 'transparent') { tmp.x.fillStyle = bgColor; tmp.x.fillRect(0, 0, CW, CH); }
+  layers.forEach(function(l) { if (l.visible) tmp.x.drawImage(l.c, 0, 0); });
+  var a = document.createElement('a');
+  a.href = tmp.e.toDataURL('image/png'); a.download = 'atelier.png'; a.click();
+  showToast('Exported!');
+}
+
+// ── KEYBOARD ──
+function onKey(e) {
+  if (['INPUT','SELECT','TEXTAREA'].indexOf(document.activeElement.tagName) >= 0) return;
+  var map = { b:'brush',p:'pencil',k:'pen',m:'marker',h:'chalk',a:'spray',
+              e:'eraser',u:'smudge',w:'blur',f:'fill',i:'eyedrop',
+              l:'line',r:'rect',t:'rectfill',o:'ellipse',g:'ellipsefill' };
+  if (map[e.key]) { setTool(map[e.key]); return; }
+  if ((e.ctrlKey||e.metaKey) && e.key==='z') { e.preventDefault(); doUndo(); return; }
+  if ((e.ctrlKey||e.metaKey) && (e.key==='y'||e.key==='Z')) { e.preventDefault(); doRedo(); return; }
+  if (e.key==='[') { brushSz=Math.max(1,brushSz-3); document.getElementById('sl-sz').value=brushSz; document.getElementById('v-sz').textContent=brushSz; }
+  if (e.key===']') { brushSz=Math.min(120,brushSz+3); document.getElementById('sl-sz').value=brushSz; document.getElementById('v-sz').textContent=brushSz; }
+}
+
+// ── COLOUR PICKER ──
+function openPicker() {
+  document.getElementById('picker-modal').classList.add('open');
+  drawSV(); drawHue();
+  document.getElementById('pk-hex').value = color.toUpperCase();
+  document.getElementById('pk-prev').style.background = color;
+}
+function confirmColor() { setColor(hsv2hex(pkH, pkS, pkV)); closeModal('picker-modal'); }
+
+function drawSV() {
+  var c = document.getElementById('sv-c'), ctx = c.getContext('2d'), W = c.width, H = c.height;
+  var gh = ctx.createLinearGradient(0,0,W,0);
+  gh.addColorStop(0,'#fff'); gh.addColorStop(1, hsv2hex(pkH,1,1));
+  ctx.fillStyle = gh; ctx.fillRect(0,0,W,H);
+  var gv = ctx.createLinearGradient(0,0,0,H);
+  gv.addColorStop(0,'rgba(0,0,0,0)'); gv.addColorStop(1,'#000');
+  ctx.fillStyle = gv; ctx.fillRect(0,0,W,H);
+  var cpx = pkS*W, cpy = (1-pkV)*H;
+  ctx.beginPath(); ctx.arc(cpx,cpy,7,0,Math.PI*2); ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.stroke();
+  ctx.beginPath(); ctx.arc(cpx,cpy,5,0,Math.PI*2); ctx.strokeStyle='#000'; ctx.lineWidth=1; ctx.stroke();
+}
+function drawHue() {
+  var c = document.getElementById('hue-c'), ctx = c.getContext('2d'), W = c.width;
+  var g = ctx.createLinearGradient(0,0,W,0);
+  for (var i = 0; i <= 360; i += 30) g.addColorStop(i/360, 'hsl('+i+',100%,50%)');
+  ctx.fillStyle = g; ctx.fillRect(0,0,W,c.height);
+  var x = (pkH/360)*W; ctx.strokeStyle='#fff'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,c.height); ctx.stroke();
+}
+function svPick(e) {
+  var c = document.getElementById('sv-c'), r = c.getBoundingClientRect();
+  pkS = Math.max(0, Math.min(1, (e.clientX-r.left)/c.offsetWidth));
+  pkV = Math.max(0, Math.min(1, 1-(e.clientY-r.top)/c.offsetHeight));
+  drawSV();
+  var h = hsv2hex(pkH,pkS,pkV);
+  document.getElementById('pk-prev').style.background = h;
+  document.getElementById('pk-hex').value = h.toUpperCase();
+}
+function huePick(e) {
+  var c = document.getElementById('hue-c'), r = c.getBoundingClientRect();
+  pkH = Math.max(0, Math.min(360, (e.clientX-r.left)/c.offsetWidth*360));
+  drawHue(); drawSV();
+  var h = hsv2hex(pkH,pkS,pkV);
+  document.getElementById('pk-prev').style.background = h;
+  document.getElementById('pk-hex').value = h.toUpperCase();
+}
+function pkHexCh(v) {
+  if (/^#[0-9a-fA-F]{6}$/.test(v)) {
+    var rgb = hexRGB(v), hsv = rgb2hsv(rgb[0],rgb[1],rgb[2]);
+    pkH=hsv[0]; pkS=hsv[1]; pkV=hsv[2]; drawSV(); drawHue();
+    document.getElementById('pk-prev').style.background = v;
+  }
+}
+
+// ── BG PICKER ──
+function buildBgPresets() {
+  var g = document.getElementById('bgpre-grid');
+  BG_PRESETS.forEach(function(bp) {
+    var d = document.createElement('div');
+    d.className = 'bgpre' + (bp.c === 'transparent' ? ' chk' : '');
+    if (bp.c !== 'transparent') d.style.background = bp.c;
+    d.title = bp.l;
+    d.onclick = function() { bgPend = bp.c; syncBgPrev(); highlightBg(); };
+    g.appendChild(d);
+  });
+}
+function highlightBg() {
+  var items = document.querySelectorAll('.bgpre');
+  items.forEach(function(d, i) {
+    d.classList.toggle('sel', BG_PRESETS[i] && BG_PRESETS[i].c === bgPend);
+  });
+}
+function syncBgPrev() {
+  var prev = document.getElementById('bg-prev');
+  var hexEl = document.getElementById('bg-hex');
+  if (bgPend === 'transparent') {
+    prev.style.background = 'repeating-conic-gradient(#888 0 25%,#ccc 0 50%) 0 0/10px 10px';
+    hexEl.value = '';
+  } else {
+    prev.style.background = bgPend;
+    hexEl.value = bgPend;
+  }
+}
+function openBgModal() { bgPend = bgColor; syncBgPrev(); highlightBg(); document.getElementById('bg-modal').classList.add('open'); }
+function bgHexCh(v) { if (/^#[0-9a-fA-F]{6}$/.test(v)) { bgPend = v; document.getElementById('bg-prev').style.background = v; highlightBg(); } }
+function confirmBg() {
+  bgColor = bgPend; setBgUI(bgColor);
+  fillBg(); composite();
+  closeModal('bg-modal'); showToast('Background updated');
+}
+function setBgUI(c) {
+  var dot = document.getElementById('bgdot');
+  dot.style.background = (c === 'transparent')
+    ? 'repeating-conic-gradient(#888 0 25%,#ccc 0 50%) 0 0/10px 10px'
+    : c;
+}
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// ── UTILS ──
+function hexRGB(hex) {
+  return [parseInt(hex.slice(1,3),16), parseInt(hex.slice(3,5),16), parseInt(hex.slice(5,7),16)];
+}
+function hexA(hex, a) {
+  var rgb = hexRGB(hex); return 'rgba('+rgb[0]+','+rgb[1]+','+rgb[2]+','+a+')';
+}
+function rgb2hsv(r, g, b) {
+  r/=255; g/=255; b/=255;
+  var max=Math.max(r,g,b), min=Math.min(r,g,b), d=max-min;
+  var h=0, s=max?d/max:0, v=max;
+  if (d) {
+    if      (max===r) h=(g-b)/d%6;
+    else if (max===g) h=(b-r)/d+2;
+    else              h=(r-g)/d+4;
+    h=h/6; if(h<0) h+=1;
+  }
+  return [h*360, s, v];
+}
+function hsv2hex(h, s, v) {
+  h/=360;
+  var i=Math.floor(h*6), f=h*6-i, p=v*(1-s), q=v*(1-f*s), t=v*(1-(1-f)*s);
+  var r,g,b;
+  switch(i%6){case 0:r=v;g=t;b=p;break;case 1:r=q;g=v;b=p;break;case 2:r=p;g=v;b=t;break;case 3:r=p;g=q;b=v;break;case 4:r=t;g=p;b=v;break;case 5:r=v;g=p;b=q;break;}
+  return '#'+[r,g,b].map(function(x){return Math.round(x*255).toString(16).padStart(2,'0');}).join('');
+}
+function showToast(msg) {
+  var t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._t); t._t = setTimeout(function(){t.classList.remove('show');}, 2000);
+}
+</script>
+</body>
+</html>
